@@ -30,7 +30,7 @@ public class WordCount {
 		 */
 		JavaSparkContext jsc = new JavaSparkContext(sparkConf);
 
-		JavaRDD<String> distFile = jsc.textFile("input-data/wordcount.txt");
+		JavaRDD<String> distFile = jsc.textFile("file:///home/jrp/workspace_1/Spark21-Example/input-data/wordcount.txt");
 
 		JavaRDD<String> flat_words = distFile
 				.flatMap(new FlatMapFunction<String, String>() {
@@ -54,8 +54,8 @@ public class WordCount {
 					}
 				});
 
-		FileUtils.deleteDirectory(new File("output/wordcount_output"));
-		flat_words_reduced.saveAsTextFile("output/wordcount_output");
+		FileUtils.deleteDirectory(new File("file:///home/jrp/workspace_1/Spark21-Example/output/wordcount_output"));
+		flat_words_reduced.saveAsTextFile("file:///home/jrp/workspace_1/Spark21-Example/output/wordcount_output");
 
 		jsc.close();
 	}
