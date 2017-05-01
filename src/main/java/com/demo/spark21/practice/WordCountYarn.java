@@ -1,16 +1,17 @@
 package com.demo.spark21.practice;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.sql.SparkSession;
 
 import scala.Tuple2;
 
@@ -20,47 +21,43 @@ import scala.Tuple2;
  */
 public class WordCountYarn {
 	public static void main(String[] args) throws IOException {
-		String path = "/home/jrp/softwares/spark-2.1.0-bin-hadoop2.7/jars/";
-		SparkConf sparkConf = new SparkConf()
-				.setAppName("WordCount_21")
+		SparkConf sparkConf = new SparkConf().setAppName("WordCountYarn")
 				.setMaster("yarn")
-				.set("deploy-mode", "cluster")
-				.set("spark.sql.hive.metastore.jars", "builtin")
-				.setJars(
-						new String[] { path + "spark-core_2.11-2.1.0.jar",
-								path + "spark-launcher_2.11-2.1.0.jar",
-								path + "spark-network-shuffle_2.11-2.1.0.jar",
-								path + "spark-yarn_2.11-2.1.0.jar" });
+				.set("deploy-mode", "client")
+				.set("spark.executor.instances", "2")
+				.set("spark.dynamicAllocation.enabled", "true")
+				.set("spark.shuffle.service.enabled", "true")
+				.set("spark.dynamicAllocation.minExecutors", "2")
+				.set("spark.dynamicAllocation.maxExecutors", "4")
+				.set("spark.yarn.shuffle.stopOnFailure", "true")
+				.set("spark.default.parallelism", "4")
+				.set("spark.sql.shuffle.partitions", "4")
+				// reduce task
+				.set("spark.serializer",
+						"org.apache.spark.serializer.KryoSerializer");
 
 		System.setProperty("HADOOP_USER_NAME", "huser");
-		System.setProperty("SPARK_YARN_MODE", "yarn");
-		/*
-		 * SparkSession session = SparkSession.builder().config(sparkConf)
-		 * .getOrCreate();
-		 */
-		JavaSparkContext jsc = new JavaSparkContext(sparkConf);
 
-		JavaRDD<String> distFile = jsc.textFile("input-data/wordcount.txt");
+		SparkSession session = SparkSession.builder().config(sparkConf)
+				.getOrCreate();
+		// session.sparkContext().addFile(path, false);;
+
+		JavaRDD<String> distFile = session
+				.read()
+				.textFile(
+						"file:///home/jrp/workspace_1/Spark21-Example/input-data/wordcount.txt")
+				.javaRDD();
 
 		JavaRDD<String> flat_words = distFile
 				.flatMap(new FlatMapFunction<String, String>() {
-					/**
-					 * 
-					 */
-					private static final long serialVersionUID = 2451133852416744577L;
-
+					
 					public Iterator<String> call(String line) throws Exception {
 						return Arrays.asList(line.split(" ")).iterator();
 					}
 				});
-
+		
 		JavaPairRDD<String, Long> flat_words_mapped = flat_words
 				.mapToPair(new PairFunction<String, String, Long>() {
-					/**
-					 * 
-					 */
-					private static final long serialVersionUID = -1866004469677211524L;
-
 					public Tuple2<String, Long> call(String flat_word)
 							throws Exception {
 						return new Tuple2<String, Long>(flat_word, 1L);
@@ -69,22 +66,12 @@ public class WordCountYarn {
 
 		JavaPairRDD<String, Long> flat_words_reduced = flat_words_mapped
 				.reduceByKey(new Function2<Long, Long, Long>() {
-					/**
-					 * 
-					 */
-					private static final long serialVersionUID = -867632747099075164L;
-
 					public Long call(Long l1, Long l2) throws Exception {
 						return l1 + l2;
 					}
 				});
 
-		// FileUtils.deleteDirectory(new File("output/wordcount_output"));
-		flat_words_reduced.saveAsTextFile("output/wordcount_output");
-
-		// UserGroupInformation ugi =
-		// UserGroupInformation.getLoginUser().doAs("hduser");
-
-		jsc.close();
+		System.out.println(flat_words_reduced.collectAsMap().size());
+		//System.out.println(distFile.collect().size());
 	}
 }

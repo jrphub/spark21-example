@@ -24,6 +24,7 @@ public class WordCount {
 	public static void main(String[] args) throws IOException {
 		SparkConf sparkConf = new SparkConf().setAppName("WordCount_21")
 				.setMaster("local[*]");
+		
 		/*
 		 * SparkSession session = SparkSession.builder().config(sparkConf)
 		 * .getOrCreate();
@@ -53,8 +54,10 @@ public class WordCount {
 						return l1 + l2;
 					}
 				});
-
-		FileUtils.deleteDirectory(new File("file:///home/jrp/workspace_1/Spark21-Example/output/wordcount_output"));
+		
+		//As the output file is in local, deleting output_dir using FileUtils
+		FileUtils.deleteDirectory(new File("/home/jrp/workspace_1/Spark21-Example/output/wordcount_output"));
+		//All spark job needs file:// or hdfs:// prefix to distinguish between local and cluster
 		flat_words_reduced.saveAsTextFile("file:///home/jrp/workspace_1/Spark21-Example/output/wordcount_output");
 
 		jsc.close();
